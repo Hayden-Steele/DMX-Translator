@@ -5,6 +5,8 @@
 
 UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface, bool useMulticast) {
     this->m_callback = std::move(callback);
+    this->m_iface = iface;
+    this->m_useMulticast = useMulticast;
     
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
@@ -17,6 +19,8 @@ UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface,
     BOOL reuse = TRUE;
     setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
 
+    // For receive sockets (callback provided) bind to requested interface/port.
+    // For send-only sockets (no callback) bind to INADDR_ANY and ephemeral port.
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -28,6 +32,18 @@ UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface,
     std::cout << "Listening on port: " << port << std::endl;
 
     m_thread = std::thread(&UdpSocket::listenLoop, this);
+
+    // At the end of the UdpSocket constructor, after bind():
+    if (!iface.empty()) {
+        in_addr iface_addr{};
+        iface_addr.s_addr = inet_addr(iface.c_str());
+        setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_IF,
+                reinterpret_cast<const char*>(&iface_addr), sizeof(iface_addr));
+
+        unsigned char ttl = 4;
+        setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_TTL,
+                reinterpret_cast<const char*>(&ttl), sizeof(ttl));
+    }
 }
 
 UdpSocket::~UdpSocket() {
@@ -60,4 +76,15 @@ void UdpSocket::listenLoop() {
         else if (received == SOCKET_ERROR)
             break;
     }
+}
+
+bool UdpSocket::send(const uint8_t* data, size_t dataSize, const std::string& address, uint16_t port) {
+    sockaddr_in dest{};
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(port);
+    dest.sin_addr.s_addr = inet_addr(address.c_str());
+
+    int sent = sendto(m_socket, reinterpret_cast<const char*>(data), static_cast<int>(dataSize), 0, reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
+
+    return sent != SOCKET_ERROR;
 }

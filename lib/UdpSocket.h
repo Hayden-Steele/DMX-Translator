@@ -20,6 +20,7 @@ class UdpSocket {
         UdpSocket& operator=(const UdpSocket&) = delete;
 
         bool joinMulticast(const std::string& groupAddr, const std::string& iface = "");
+        bool send(const uint8_t* data, size_t dataSize, const std::string& address, uint16_t port);
 
     private:
         void listenLoop();
@@ -28,4 +29,6 @@ class UdpSocket {
         std::thread       m_thread;
         std::atomic<bool> m_running { true };
         Callback          m_callback;
+        std::string       m_iface;
+        bool              m_useMulticast = false;
 };

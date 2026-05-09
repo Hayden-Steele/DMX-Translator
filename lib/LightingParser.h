@@ -28,3 +28,4 @@ class LightingParser {
 
 };
 
+std::string calcMulticastIp(uint16_t universe);

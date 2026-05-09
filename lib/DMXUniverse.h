@@ -9,6 +9,10 @@
 class DMXUniverse {
     public: 
 
+        DMXUniverse();
+
+        void setUniverseNumber(uint16_t universeNumber) { this->universeNumber = universeNumber; }
+
         uint8_t getChannelValue(int channel);
         void setChannelValue(int channel, uint8_t value);
 
@@ -23,7 +27,16 @@ class DMXUniverse {
             return os;
         };
 
+        struct SACNPacket {
+            uint8_t* data = nullptr;
+            size_t size = 0;
+            uint16_t universe = 0;
+        };
+        SACNPacket toSACNPacket();
+        
+
     private:
         uint8_t data[UNIVERSE_BUFFER_SIZE];
         std::mutex dataMutex[UNIVERSE_BUFFER_SIZE];
+        uint16_t universeNumber;
 };

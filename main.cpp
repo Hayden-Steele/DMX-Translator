@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <chrono>
+#include "thread"
 #include "lib/LightingParser.h"
 
 
@@ -8,9 +10,9 @@
 #define UNIVERSE_COUNT 1
 
 #define ARTNET_IN_UNIVERSE_START 1
-#define SACN_IN_UNIVERSE_START 2
+#define SACN_IN_UNIVERSE_START 1
 
-#define SACN_OUT_UNIVERSE_START 3
+#define SACN_OUT_UNIVERSE_START 2
 
 #define SACN_PORT 5568
 #define ARTNET_PORT 6454
@@ -40,7 +42,7 @@ void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t data
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
 
-    std::cout << "ARTNET " << universe << " - " << *parser->getUniverseStorage()->getUniverse(universeIndex) << std::endl;
+    std::cout << "ARTNET " << universe << std::endl;
 }
 
 
@@ -69,13 +71,13 @@ void handleSACNPacket(LightingParser* parser, const uint8_t* data, size_t dataSi
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
 
-    std::cout << "SACN " << universe << " - " << *parser->getUniverseStorage()->getUniverse(universeIndex) << std::endl;
+    std::cout << "SACN " << universe << std::endl;
 }
 
 
 
 
-UniverseStorage output = UniverseStorage(UNIVERSE_COUNT);
+UniverseStorage output = UniverseStorage(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
 
 int main() {
@@ -83,6 +85,38 @@ int main() {
     LightingParser artnet = LightingParser(ARTNET_IN_UNIVERSE_START, UNIVERSE_COUNT, handleArtNetPacket, ARTNET_PORT, false, "2.0.0.3");
     LightingParser sacn = LightingParser(SACN_IN_UNIVERSE_START, UNIVERSE_COUNT, handleSACNPacket, SACN_PORT, true, "2.0.0.3");
 
+    UdpSocket sendSocket = UdpSocket(0, nullptr, "2.0.0.3", false);
+    
+    auto start = std::chrono::steady_clock::now();
+    auto end = std::chrono::steady_clock::now();
+
+    const std::chrono::duration<double, std::milli> targetFrameTime(1000.0 / SACN_SEND_FPS);
+
+    while (true) {
+        start = std::chrono::steady_clock::now();
+
+        output.mergeInHTP(artnet.getUniverseStorage(), sacn.getUniverseStorage());
+        DMXUniverse::SACNPacket* packets = output.toSACNPackets();
+        for (int i = 0; i < output.getUniverseCount(); i++) {
+        
+            bool success = sendSocket.send(packets[i].data, packets[i].size, calcMulticastIp(packets[i].universe), SACN_PORT);
+            if (!success) {
+                std::cerr << "Failed to send SACN packet for universe " << (SACN_OUT_UNIVERSE_START + i) << std::endl;
+            } else {
+                std::cout << "Sent SACN packet for universe " << (SACN_OUT_UNIVERSE_START + i) << std::endl;
+            }
+            delete[] packets[i].data;
+        }
+        delete[] packets;
+    
+
+        end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> dt = end - start;
+
+        if (dt < targetFrameTime) {
+            std::this_thread::sleep_for(targetFrameTime - dt);
+        }
+    }
 
     std::cin.get();
 
