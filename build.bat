@@ -1,0 +1,1 @@
+g++ main.cpp lib/*.cpp -o main -lws2_32
