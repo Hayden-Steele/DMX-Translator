@@ -1,11 +1,24 @@
 #include "DMXUniverse.h"
 
 
-inline uint8_t DMXUniverse::getChannelValue(int channel) {
-    if (channel <= 0 || channel > UNIVERSE_BUFFER_SIZE) {
+uint8_t DMXUniverse::getChannelValue(int channel) {
+    if (channel >= UNIVERSE_BUFFER_SIZE) {
         return 0;
     }
-    return data[channel - 1];
+    return this->data[channel];
+};
+
+void DMXUniverse::setChannelValue(int channel, uint8_t value) {
+    if (channel >= UNIVERSE_BUFFER_SIZE) { 
+        return;
+    }
+    this->data[channel] = value;
+};
+
+void DMXUniverse::clear() {
+    for (int i = 0; i < UNIVERSE_BUFFER_SIZE; i++) {
+        this->data[i] = 0;
+    }
 };
 
 void DMXUniverse::mergeInHTP(DMXUniverse* u1, DMXUniverse* u2) {

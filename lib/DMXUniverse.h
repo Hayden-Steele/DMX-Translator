@@ -8,7 +8,11 @@
 class DMXUniverse {
     public: 
 
-        inline uint8_t getChannelValue(int channel);
+        uint8_t getChannelValue(int channel);
+        void setChannelValue(int channel, uint8_t value);
+
+        void clear();
+
         void mergeInHTP(DMXUniverse* u1, DMXUniverse* u2);
 
         friend std::ostream& operator<<(std::ostream& os, const DMXUniverse& u) {
@@ -19,5 +23,5 @@ class DMXUniverse {
         };
 
     private:
-        uint8_t *data = new uint8_t[UNIVERSE_BUFFER_SIZE];
+        uint8_t data[UNIVERSE_BUFFER_SIZE];
 };
