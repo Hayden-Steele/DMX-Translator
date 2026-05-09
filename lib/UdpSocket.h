@@ -13,7 +13,7 @@ class UdpSocket {
     public:
         using Callback = std::function<void(const uint8_t*, size_t, const sockaddr_in&)>;
 
-        UdpSocket(uint16_t port, Callback callback, const std::string& iface = "");
+        UdpSocket(uint16_t port, Callback callback, const std::string& iface = "", bool useMulticast = false);
         ~UdpSocket();
 
         UdpSocket(const UdpSocket&) = delete;

@@ -3,7 +3,7 @@
 #include <string>
 #include <iostream>
 
-#define UNIVERSE_BUFFER_SIZE 256
+#define UNIVERSE_BUFFER_SIZE 512
 
 class DMXUniverse {
     public: 
@@ -16,7 +16,7 @@ class DMXUniverse {
         void mergeInHTP(DMXUniverse* u1, DMXUniverse* u2);
 
         friend std::ostream& operator<<(std::ostream& os, const DMXUniverse& u) {
-            for (int i = 0; i < UNIVERSE_BUFFER_SIZE; i++) {
+            for (int i = 0; i < 100; i++) {
                 os << static_cast<int>(u.data[i]) << " ";
             }
             return os;

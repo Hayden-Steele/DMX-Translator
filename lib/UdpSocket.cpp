@@ -3,7 +3,9 @@
 #include <vector>
 #include <iostream>
 
-UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface) : m_callback(std::move(callback)) {
+UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface, bool useMulticast) {
+    this->m_callback = std::move(callback);
+    
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
         throw std::runtime_error("WSAStartup failed");
