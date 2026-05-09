@@ -2,7 +2,7 @@
 #include <string>
 #include "UdpSocket.h"
 #include "DMXUniverse.h"
-
+#include "UniverseStorage.h"
 
 class LightingParser {
 
@@ -13,7 +13,7 @@ class LightingParser {
         LightingParser(uint16_t universeStart, uint16_t universeCount, PacketHandler packetHandler, uint16_t port, bool useMulticast = false, const std::string& iface = "");
         ~LightingParser();
 
-        DMXUniverse* getUniverse(int universeIndex);
+        UniverseStorage* getUniverseStorage() { return universeStorage; }  
         int getUniverseStart() const { return universeStart; }
         int getUniverseCount() const { return universeCount; }
 
@@ -24,8 +24,7 @@ class LightingParser {
 
         PacketHandler packetHandler;
         UdpSocket* socket;
-        DMXUniverse* universes;
-
+        UniverseStorage* universeStorage;
 
 };
 

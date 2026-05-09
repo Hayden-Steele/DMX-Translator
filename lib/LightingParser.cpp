@@ -13,12 +13,7 @@ LightingParser::LightingParser(uint16_t universeStart, uint16_t universeCount, P
     this->universeStart = universeStart;
     this->universeCount = universeCount;
     this->packetHandler = packetHandler;
-
-    this->universes = new DMXUniverse[universeCount];
-    
-    for (int i = 0; i < universeCount; i++) {
-        this->universes[i] = DMXUniverse();
-    }
+    this->universeStorage = new UniverseStorage(universeCount);
 
     this->socket = new UdpSocket(port, [this](const uint8_t* data, size_t dataSize, const sockaddr_in& sender) {
         this->packetHandler(this, data, dataSize);
@@ -33,13 +28,6 @@ LightingParser::LightingParser(uint16_t universeStart, uint16_t universeCount, P
 }
 
 LightingParser::~LightingParser() {
-    delete[] this->universes;
-    delete this->socket;
-}
-
-DMXUniverse* LightingParser::getUniverse(int universeIndex) {
-    if (universeIndex < 0 || universeIndex >= this->universeCount) {
-        return nullptr;
-    }
-    return &this->universes[universeIndex];
+    delete socket;
+    delete universeStorage;
 }

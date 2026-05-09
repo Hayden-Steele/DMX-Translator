@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <iostream>
+#include <mutex>
 
 #define UNIVERSE_BUFFER_SIZE 512
 
@@ -24,4 +25,5 @@ class DMXUniverse {
 
     private:
         uint8_t data[UNIVERSE_BUFFER_SIZE];
+        std::mutex dataMutex[UNIVERSE_BUFFER_SIZE];
 };
