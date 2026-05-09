@@ -52,8 +52,6 @@ void DMXUniverse::mergeInHTP(DMXUniverse* u1, DMXUniverse* u2) {
 
 DMXUniverse::SACNPacket DMXUniverse::toSACNPacket() {
 
-    std::cout << "Creating SACN packet for universe " << universeNumber << std::endl;
-
     const size_t headerSize = 126;
     const size_t dmxCount = UNIVERSE_BUFFER_SIZE;
     const size_t packetSize = headerSize + dmxCount;

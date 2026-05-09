@@ -7,12 +7,12 @@
 
 
 
-#define UNIVERSE_COUNT 1
+#define UNIVERSE_COUNT 4
 
 #define ARTNET_IN_UNIVERSE_START 1
 #define SACN_IN_UNIVERSE_START 1
 
-#define SACN_OUT_UNIVERSE_START 2
+#define SACN_OUT_UNIVERSE_START 5
 
 #define SACN_PORT 5568
 #define ARTNET_PORT 6454
@@ -41,8 +41,6 @@ void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t data
     for (int i = 0; i < dmxLength; i++) {
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
-
-    std::cout << "ARTNET " << universe << std::endl;
 }
 
 
@@ -70,8 +68,6 @@ void handleSACNPacket(LightingParser* parser, const uint8_t* data, size_t dataSi
     for (size_t i = 0; i < dmxLength; i++) {
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
-
-    std::cout << "SACN " << universe << std::endl;
 }
 
 
@@ -102,8 +98,6 @@ int main() {
             bool success = sendSocket.send(packets[i].data, packets[i].size, calcMulticastIp(packets[i].universe), SACN_PORT);
             if (!success) {
                 std::cerr << "Failed to send SACN packet for universe " << (SACN_OUT_UNIVERSE_START + i) << std::endl;
-            } else {
-                std::cout << "Sent SACN packet for universe " << (SACN_OUT_UNIVERSE_START + i) << std::endl;
             }
             delete[] packets[i].data;
         }
