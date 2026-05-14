@@ -1,13 +1,24 @@
 #pragma once
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#pragma comment(lib, "Ws2_32.lib")
+using SocketHandle = SOCKET;
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+using SocketHandle = int;
+constexpr int INVALID_SOCKET = -1;
+constexpr int SOCKET_ERROR = -1;
+#endif
+
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <thread>
 #include <atomic>
-
-#pragma comment(lib, "Ws2_32.lib")
 
 class UdpSocket {
     public:
@@ -25,7 +36,7 @@ class UdpSocket {
     private:
         void listenLoop();
 
-        SOCKET            m_socket = INVALID_SOCKET;
+        SocketHandle      m_socket = INVALID_SOCKET;
         std::thread       m_thread;
         std::atomic<bool> m_running { true };
         Callback          m_callback;

@@ -2,22 +2,53 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <utility>
+
+#ifdef _WIN32
+static void initSockets() {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        throw std::runtime_error("WSAStartup failed");
+    }
+}
+
+static void cleanupSockets() {
+    WSACleanup();
+}
+
+static int closeSocket(SOCKET socketHandle) {
+    return closesocket(socketHandle);
+}
+#else
+static void initSockets() {}
+
+static void cleanupSockets() {}
+
+static int closeSocket(int socketHandle) {
+    return close(socketHandle);
+}
+#endif
 
 UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface, bool useMulticast) {
     this->m_callback = std::move(callback);
     this->m_iface = iface;
     this->m_useMulticast = useMulticast;
-    
-    WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-        throw std::runtime_error("WSAStartup failed");
+
+    initSockets();
 
     m_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (m_socket == INVALID_SOCKET)
         throw std::runtime_error("socket() failed");
 
+#ifdef _WIN32
     BOOL reuse = TRUE;
+#else
+    int reuse = 1;
+#endif
     setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
+#if defined(__APPLE__)
+    setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
+#endif
 
     // For receive sockets (callback provided) bind to requested interface/port.
     // For send-only sockets (no callback) bind to INADDR_ANY and ephemeral port.
@@ -48,9 +79,9 @@ UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface,
 
 UdpSocket::~UdpSocket() {
     m_running = false;
-    closesocket(m_socket);
+    closeSocket(m_socket);
     m_thread.join();
-    WSACleanup();
+    cleanupSockets();
 }
 
 bool UdpSocket::joinMulticast(const std::string &groupAddr, const std::string &iface) {
@@ -67,7 +98,11 @@ void UdpSocket::listenLoop() {
 
     while (m_running.load()) {
         sockaddr_in sender{};
+    #ifdef _WIN32
         int senderLen = sizeof(sender);
+    #else
+        socklen_t senderLen = sizeof(sender);
+    #endif
 
         int received = recvfrom(m_socket, reinterpret_cast<char *>(buf.data()), static_cast<int>(BUF_SIZE), 0, reinterpret_cast<sockaddr *>(&sender), &senderLen);
 
