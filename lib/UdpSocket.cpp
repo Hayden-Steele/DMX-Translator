@@ -46,23 +46,36 @@ UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface,
     int reuse = 1;
 #endif
     setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
-#if defined(__APPLE__)
+#if defined(SO_REUSEPORT)
     setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
 #endif
 
-    // For receive sockets (callback provided) bind to requested interface/port.
-    // For send-only sockets (no callback) bind to INADDR_ANY and ephemeral port.
+#ifdef _WIN32
+    BOOL broadcast = TRUE;
+#else
+    int broadcast = 1;
+#endif
+    setsockopt(m_socket, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<const char *>(&broadcast), sizeof(broadcast));
+
+    const bool hasCallback = static_cast<bool>(m_callback);
+
+    // For receive sockets, bind to INADDR_ANY so broadcast/multicast can be received.
+    // For send-only sockets, bind to the requested interface if provided.
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = iface.empty() ? INADDR_ANY : inet_addr(iface.c_str());
+    if (hasCallback) {
+        addr.sin_addr.s_addr = INADDR_ANY;
+    } else {
+        addr.sin_addr.s_addr = iface.empty() ? INADDR_ANY : inet_addr(iface.c_str());
+    }
 
     if (::bind(m_socket, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == SOCKET_ERROR)
         throw std::runtime_error("bind() failed");
 
-    std::cout << "Listening on port: " << port << std::endl;
-
-    m_thread = std::thread(&UdpSocket::listenLoop, this);
+    if (hasCallback) {
+        std::cout << "Listening on port: " << port << std::endl;
+    }
 
     // At the end of the UdpSocket constructor, after bind():
     if (!iface.empty()) {
@@ -75,19 +88,26 @@ UdpSocket::UdpSocket(uint16_t port, Callback callback, const std::string &iface,
         setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_TTL,
                 reinterpret_cast<const char*>(&ttl), sizeof(ttl));
     }
+
+    if (hasCallback) {
+        m_thread = std::thread(&UdpSocket::listenLoop, this);
+    }
 }
 
 UdpSocket::~UdpSocket() {
     m_running = false;
     closeSocket(m_socket);
-    m_thread.join();
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
     cleanupSockets();
 }
 
 bool UdpSocket::joinMulticast(const std::string &groupAddr, const std::string &iface) {
+    const std::string& resolvedIface = iface.empty() ? m_iface : iface;
     ip_mreq mreq{};
     mreq.imr_multiaddr.s_addr = inet_addr(groupAddr.c_str());
-    mreq.imr_interface.s_addr = iface.empty() ? INADDR_ANY : inet_addr(iface.c_str());
+    mreq.imr_interface.s_addr = resolvedIface.empty() ? INADDR_ANY : inet_addr(resolvedIface.c_str());
 
     return setsockopt(m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<const char *>(&mreq), sizeof(mreq)) == 0;
 }
