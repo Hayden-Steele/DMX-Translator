@@ -7,17 +7,29 @@
 
 
 
-#define UNIVERSE_COUNT 4
+#define UNIVERSE_COUNT 100
 
 #define ARTNET_IN_UNIVERSE_START 1
 #define SACN_IN_UNIVERSE_START 1
 
-#define SACN_OUT_UNIVERSE_START 5
+#define SACN_OUT_UNIVERSE_START 200
 
 #define SACN_PORT 5568
 #define ARTNET_PORT 6454
-#define SACN_SEND_FPS 45
+#define SACN_SEND_FPS 30
 
+#define BIND_ADDRESS "10.0.0.236"
+
+
+
+#define AVG_FRAME_TIME_SAMPLES 90
+double frameTimes[AVG_FRAME_TIME_SAMPLES] = {0};
+uint64_t frameCount = 0;
+
+double lastArtnet = 0;
+double lastSACN = 0;
+
+UniverseStorage output(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
 
 void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t dataSize) {
@@ -41,6 +53,8 @@ void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t data
     for (int i = 0; i < dmxLength; i++) {
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
+
+    lastArtnet = now();
 }
 
 
@@ -68,28 +82,27 @@ void handleSACNPacket(LightingParser* parser, const uint8_t* data, size_t dataSi
     for (size_t i = 0; i < dmxLength; i++) {
         parser->getUniverseStorage()->getUniverse(universeIndex)->setChannelValue(i, dmxData[i]);
     }
+
+    lastSACN = now();
 }
-
-
-
-
-UniverseStorage output = UniverseStorage(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
 
 int main() {
 
-    LightingParser artnet = LightingParser(ARTNET_IN_UNIVERSE_START, UNIVERSE_COUNT, handleArtNetPacket, ARTNET_PORT, false, "2.0.0.3");
-    LightingParser sacn = LightingParser(SACN_IN_UNIVERSE_START, UNIVERSE_COUNT, handleSACNPacket, SACN_PORT, true, "2.0.0.3");
+    std::cout << "Binding to address: " << BIND_ADDRESS << std::endl;
 
-    UdpSocket sendSocket = UdpSocket(0, nullptr, "2.0.0.3", false);
+    LightingParser artnet(ARTNET_IN_UNIVERSE_START, UNIVERSE_COUNT, handleArtNetPacket, ARTNET_PORT, false, BIND_ADDRESS);
+    LightingParser sacn(SACN_IN_UNIVERSE_START, UNIVERSE_COUNT, handleSACNPacket, SACN_PORT, true, BIND_ADDRESS);
+
+    UdpSocket sendSocket(0, nullptr, BIND_ADDRESS, false);
     
-    auto start = std::chrono::steady_clock::now();
-    auto end = std::chrono::steady_clock::now();
+    double start = now();
+    double end = now();
 
-    const std::chrono::duration<double, std::milli> targetFrameTime(1000.0 / SACN_SEND_FPS);
+    const double targetFrameTime = (1000.0 / SACN_SEND_FPS);
 
     while (true) {
-        start = std::chrono::steady_clock::now();
+        start = now();
 
         output.mergeInHTP(artnet.getUniverseStorage(), sacn.getUniverseStorage());
         DMXUniverse::SACNPacket* packets = output.toSACNPackets();
@@ -104,11 +117,29 @@ int main() {
         delete[] packets;
     
 
-        end = std::chrono::steady_clock::now();
-        std::chrono::duration<double, std::milli> dt = end - start;
+        end = now();
+        double dt = end - start;
 
         if (dt < targetFrameTime) {
-            std::this_thread::sleep_for(targetFrameTime - dt);
+            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(targetFrameTime - dt));
+        }
+
+        frameCount++;
+        frameTimes[frameCount % AVG_FRAME_TIME_SAMPLES] = dt;
+        if (frameCount % AVG_FRAME_TIME_SAMPLES == 0) {
+
+            std::cout << "------------------------------------------------" << std::endl;
+
+            double avgFrameTime = 0;
+            for (int i = 0; i < AVG_FRAME_TIME_SAMPLES; i++) {
+                avgFrameTime += frameTimes[i];
+            }
+            avgFrameTime /= AVG_FRAME_TIME_SAMPLES;
+            std::cout << "Avg Sleep Time: " << avgFrameTime << " ms" << std::endl;
+
+            double artnetAge = now() - lastArtnet;
+            double sacnAge = now() - lastSACN;
+            std::cout << "Artnet Age: " << artnetAge << " ms     SACN Age: " << sacnAge << " ms" << std::endl;
         }
     }
 

@@ -3,8 +3,12 @@
 #include <string>
 #include <iostream>
 #include <mutex>
+#include <time.h>
 
 #define UNIVERSE_BUFFER_SIZE 512
+#define UNIVERSE_EXPIRED_MS 5000
+
+double now();
 
 class DMXUniverse {
     public: 
@@ -39,4 +43,5 @@ class DMXUniverse {
         uint8_t data[UNIVERSE_BUFFER_SIZE];
         std::mutex dataMutex[UNIVERSE_BUFFER_SIZE];
         uint16_t universeNumber;
+        double timestamp;
 };

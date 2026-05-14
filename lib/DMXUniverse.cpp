@@ -1,17 +1,33 @@
 #include "DMXUniverse.h"
 #include <cstring>
 
+
+double now() {
+    typedef std::chrono::high_resolution_clock clock;
+    typedef std::chrono::duration<float, std::milli> duration;
+
+    static clock::time_point start = clock::now();
+    duration elapsed = clock::now() - start;
+    return elapsed.count();
+}
+
+
 DMXUniverse::DMXUniverse() {
     this->universeNumber = 0;
     for (int i = 0; i < UNIVERSE_BUFFER_SIZE; i++) {
         this->data[i] = 0;
     }
+    this->timestamp = now();
 }
 
 uint8_t DMXUniverse::getChannelValue(int channel) {
     if (channel >= UNIVERSE_BUFFER_SIZE) {
         return 0;
     }
+    if (this->timestamp + UNIVERSE_EXPIRED_MS < now()) {
+        return 0;
+    }
+    
     this->dataMutex[channel].lock();
     uint8_t data = this->data[channel];
     this->dataMutex[channel].unlock();
@@ -25,6 +41,7 @@ void DMXUniverse::setChannelValue(int channel, uint8_t value) {
     this->dataMutex[channel].lock();
     this->data[channel] = value;
     this->dataMutex[channel].unlock();
+    this->timestamp = now();
 };
 
 void DMXUniverse::clear() {
