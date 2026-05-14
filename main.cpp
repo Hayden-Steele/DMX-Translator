@@ -7,12 +7,12 @@
 
 
 
-#define UNIVERSE_COUNT 100
+#define UNIVERSE_COUNT 5
 
 #define ARTNET_IN_UNIVERSE_START 1
 #define SACN_IN_UNIVERSE_START 1
 
-#define SACN_OUT_UNIVERSE_START 200
+#define SACN_OUT_UNIVERSE_START 6
 
 #define SACN_PORT 5568
 #define ARTNET_PORT 6454
@@ -20,9 +20,11 @@
 
 #define BIND_ADDRESS "10.0.0.236"
 
-
-
 #define AVG_FRAME_TIME_SAMPLES 90
+
+
+
+
 double frameTimes[AVG_FRAME_TIME_SAMPLES] = {0};
 uint64_t frameCount = 0;
 
@@ -97,7 +99,6 @@ int main() {
     UdpSocket sendSocket(0, nullptr, BIND_ADDRESS, false);
     
     double start = now();
-    double end = now();
 
     const double targetFrameTime = (1000.0 / SACN_SEND_FPS);
 
@@ -115,10 +116,8 @@ int main() {
             delete[] packets[i].data;
         }
         delete[] packets;
-    
 
-        end = now();
-        double dt = end - start;
+        double dt = now() - start;
 
         if (dt < targetFrameTime) {
             std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(targetFrameTime - dt));
@@ -142,8 +141,6 @@ int main() {
             std::cout << "Artnet Age: " << artnetAge << " ms     SACN Age: " << sacnAge << " ms" << std::endl;
         }
     }
-
-    std::cin.get();
 
     return 0;
 }

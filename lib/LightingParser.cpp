@@ -29,4 +29,5 @@ LightingParser::LightingParser(uint16_t universeStart, uint16_t universeCount, P
 
 LightingParser::~LightingParser() {
     delete socket;
+    delete universeStorage;
 }
