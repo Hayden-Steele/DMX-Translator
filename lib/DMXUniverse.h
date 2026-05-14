@@ -7,6 +7,7 @@
 
 #define UNIVERSE_BUFFER_SIZE 512
 #define UNIVERSE_EXPIRED_MS 5000
+#define SACN_PRIORITY 200
 
 double now();
 

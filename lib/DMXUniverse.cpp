@@ -1,10 +1,11 @@
 #include "DMXUniverse.h"
+#include <chrono>
 #include <cstring>
 
 
 double now() {
-    typedef std::chrono::high_resolution_clock clock;
-    typedef std::chrono::duration<float, std::milli> duration;
+    using clock = std::chrono::steady_clock;
+    using duration = std::chrono::duration<double, std::milli>;
 
     static clock::time_point start = clock::now();
     duration elapsed = clock::now() - start;
@@ -65,6 +66,7 @@ void DMXUniverse::mergeInHTP(DMXUniverse* u1, DMXUniverse* u2) {
         }
         this->dataMutex[i].unlock();
     }
+    this->timestamp = now();
 }
 
 DMXUniverse::SACNPacket DMXUniverse::toSACNPacket() {
@@ -105,11 +107,11 @@ DMXUniverse::SACNPacket DMXUniverse::toSACNPacket() {
     packetData[43] = 0x02;
 
     // Source Name (64 bytes at offset 44)
-    const char* sourceName = "DMX Translator";
+    const char* sourceName = "Hayden Steele DMX Translator";
     strncpy(reinterpret_cast<char*>(packetData + 44), sourceName, 64);
 
     // Priority at 108
-    packetData[108] = 100;
+    packetData[108] = SACN_PRIORITY;
 
     // Synchronization Address at 109-110
     packetData[109] = 0x00;

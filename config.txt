@@ -1,0 +1,10 @@
+bind_address=2.0.0.3
+
+universe_count=2
+
+artnet_in_universe_start=1
+sacn_in_universe_start=5
+
+sacn_out_universe_start=1
+
+sacn_send_fps=40
