@@ -9,8 +9,6 @@
 
 std::map<std::string, std::string> config = readConfig("config.txt");
 
-
-
 #define UNIVERSE_COUNT getConfigInt(config, "universe_count", 2)
 #define ARTNET_IN_UNIVERSE_START getConfigInt(config, "artnet_in_universe_start", 1)
 #define SACN_IN_UNIVERSE_START getConfigInt(config, "sacn_in_universe_start", 5)
@@ -23,6 +21,7 @@ std::map<std::string, std::string> config = readConfig("config.txt");
 #define AVG_FRAME_TIME_SAMPLES 40
 
 
+
 const double targetFrameTime = (1000.0 / SACN_SEND_FPS);
 double frameTimes[AVG_FRAME_TIME_SAMPLES] = {0};
 uint64_t frameCount = 0;
@@ -30,7 +29,6 @@ uint64_t frameCount = 0;
 double lastArtnet = 0;
 double lastSACN = 0;
 
-UniverseStorage output(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
 
 void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t dataSize) {
@@ -57,13 +55,10 @@ void handleArtNetPacket(LightingParser* parser, const uint8_t* data, size_t data
 
     lastArtnet = now();
 }
-
-
 static constexpr uint8_t SACN_SIGNATURE[] = {
     0x41, 0x53, 0x43, 0x2d, 0x45, 0x31, 0x2e,
     0x31, 0x37, 0x00, 0x00, 0x00
 };
-
 void handleSACNPacket(LightingParser* parser, const uint8_t* data, size_t dataSize) {
 
     if (dataSize < 126) return;
@@ -88,7 +83,13 @@ void handleSACNPacket(LightingParser* parser, const uint8_t* data, size_t dataSi
 }
 
 
+
+
+
+
 void statsLoop() {
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     std::cout << "------------------------------------------------" << std::endl;
 
@@ -136,35 +137,15 @@ void statsLoop() {
     }
 }
 
-bool rangesOverlap(int start1, int count1, int start2, int count2) {
-    return (start1 < start2 + count2) && (start2 < start1 + count1);
-}
-
-int main() {
-
-    std::cout << "Config: " << std::endl;   
-    for (const auto& [key, value] : config) {
-        std::cout << "  " << key << " = " << value << std::endl;
-    }
-
-    if (config["bind_address"].empty()) {
-        throw std::runtime_error("Please provide a bind address in the config file (bind_address=)");
-    } else {
-        std::cout << "Using bind address: " << config["bind_address"] << std::endl;
-    }
-
-    if (rangesOverlap(SACN_OUT_UNIVERSE_START, UNIVERSE_COUNT, SACN_IN_UNIVERSE_START, UNIVERSE_COUNT)) {
-        throw std::runtime_error("Input and output SACN universe ranges cannot overlap");
-    }
-
+void sendLoop() {
     std::string bindAddress = config["bind_address"];
 
     LightingParser artnet(ARTNET_IN_UNIVERSE_START, UNIVERSE_COUNT, handleArtNetPacket, ARTNET_PORT, false, bindAddress);
     LightingParser sacn(SACN_IN_UNIVERSE_START, UNIVERSE_COUNT, handleSACNPacket, SACN_PORT, true, bindAddress);
 
     UdpSocket sendSocket(0, nullptr, bindAddress, false);
-    
-    std::thread statsThread(statsLoop);
+
+    UniverseStorage output(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
     double start = now();
 
@@ -192,6 +173,36 @@ int main() {
         frameCount++;
         frameTimes[frameCount % AVG_FRAME_TIME_SAMPLES] = dt;
     }
+}
+
+
+
+
+
+
+bool rangesOverlap(int start1, int count1, int start2, int count2) {
+    return (start1 < start2 + count2) && (start2 < start1 + count1);
+}
+
+int main() {
+
+    std::cout << "Config: " << std::endl;   
+    for (const auto& [key, value] : config) {
+        std::cout << "  " << key << " = " << value << std::endl;
+    }
+
+    if (config["bind_address"].empty()) {
+        throw std::runtime_error("Please provide a bind address in the config file (bind_address=)");
+    } else {
+        std::cout << "Using bind address: " << config["bind_address"] << std::endl;
+    }
+
+    if (rangesOverlap(SACN_OUT_UNIVERSE_START, UNIVERSE_COUNT, SACN_IN_UNIVERSE_START, UNIVERSE_COUNT)) {
+        throw std::runtime_error("Input and output SACN universe ranges cannot overlap");
+    }
+
+    std::thread statsThread(statsLoop);
+    sendLoop();
 
     return 0;
 }
