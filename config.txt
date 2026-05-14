@@ -7,4 +7,4 @@ sacn_in_universe_start=5
 
 sacn_out_universe_start=1
 
-sacn_send_fps=40
+sacn_send_fps=30

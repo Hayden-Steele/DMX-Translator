@@ -4,12 +4,9 @@
 
 
 double now() {
-    using clock = std::chrono::steady_clock;
-    using duration = std::chrono::duration<double, std::milli>;
-
-    static clock::time_point start = clock::now();
-    duration elapsed = clock::now() - start;
-    return elapsed.count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
 }
 
 

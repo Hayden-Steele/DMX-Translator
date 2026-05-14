@@ -96,8 +96,8 @@ void statsLoop() {
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        std::cout << "                                             " << std::endl;
-        std::cout << "                                             " << std::endl;
+        std::cout << "                                                  " << std::endl;
+        std::cout << "                                                  " << std::endl;
         std::cout << "\033[2A";
 
         double avgFrameTime = 0;
@@ -148,9 +148,15 @@ void sendLoop() {
     UniverseStorage output(UNIVERSE_COUNT, SACN_OUT_UNIVERSE_START);
 
     double start = now();
+    double nextStartTime = start + targetFrameTime;
 
     while (true) {
         start = now();
+
+        if (start < nextStartTime) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
 
         output.mergeInHTP(artnet.getUniverseStorage(), sacn.getUniverseStorage());
         DMXUniverse::SACNPacket* packets = output.toSACNPackets();
@@ -164,11 +170,8 @@ void sendLoop() {
         }
         delete[] packets;
 
+        nextStartTime += targetFrameTime;
         double dt = now() - start;
-
-        if (dt < targetFrameTime) {
-            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(targetFrameTime - dt));
-        }
 
         frameCount++;
         frameTimes[frameCount % AVG_FRAME_TIME_SAMPLES] = dt;
